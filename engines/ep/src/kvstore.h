@@ -767,7 +767,7 @@ public:
      * This method is called before persisting a batch of data if you'd like to
      * do stuff to them that might improve performance at the IO layer.
      */
-    void optimizeWrites(std::vector<queued_item>& items);
+    virtual void optimizeWrites(std::vector<queued_item>& items);
 
     PersistenceCallbacks& getPersistenceCbList() {
         return pcbs;

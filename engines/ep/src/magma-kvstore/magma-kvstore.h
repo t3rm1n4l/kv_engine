@@ -23,6 +23,8 @@
 
 #include <platform/dirutils.h>
 
+#include "libmagma/magma.h"
+
 #include <map>
 #include <string>
 #include <vector>
@@ -216,16 +218,18 @@ public:
         return 0;
     }
 
+    bool shouldPersistDocNamespace() {
+        return persistDocNamespace;
+    }
+
 private:
+    // Magma instance for a shard.
+    std::unique_ptr<Magma> magma;
+
     // This is used for synchonization in `openDB` to avoid that we open two
     // instances on the same DB (e.g., this would be possible
     // when we `Flush` and `Warmup` run in parallel).
     std::mutex openDBMutex;
-    // Thus, we put an entry in this vector at position `vbid` when we `openDB`
-    // for a VBucket for the first time. Then, further calls to `openDB(vbid)`
-    // return the pointer stored in this vector. An entry is removed only when
-    // `delVBucket(vbid)`.
-    std::vector<std::unique_ptr<KVMagma>> vbDB;
 
     /*
      * This function returns an instance of `KVMagma` for the given `vbid`.
@@ -261,7 +265,7 @@ private:
                           const std::string& value,
                           GetMetaOnly getMetaOnly = GetMetaOnly::No);
 
-    void readVBState(const KVMagma& db);
+    void readVBState(const Vbid vbid);
 
     int saveDocs(Vbid vbid,
                  Collections::VB::Flush& collectionsFlush,
@@ -271,7 +275,7 @@ private:
             int status,
             const std::vector<std::unique_ptr<MagmaRequest>>& commitBatch);
 
-    int64_t readHighSeqnoFromDisk(const KVMagma& db);
+    int64_t readHighSeqnoFromDisk(Vbid vbid);
 
     std::string getVbstateKey();
 
@@ -292,9 +296,10 @@ private:
     //      - commit()
     bool in_transaction;
     std::unique_ptr<TransactionContext> transactionCtx;
-    const std::string magmaPath;
+    std::string magmaPath;
 
     std::atomic<size_t> scanCounter; // atomic counter for generating scan id
 
     BucketLogger& logger;
+    bool persistDocNamespace{false};
 };

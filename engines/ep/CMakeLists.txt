@@ -667,6 +667,11 @@ if (NOT EP_BYPASS_TESTS)
         SET_TESTS_PROPERTIES(ep-engine-persistence-unit-tests.rocksdb PROPERTIES TIMEOUT 300)
     ENDIF (EP_USE_ROCKSDB)
 
+    IF (EP_USE_MAGMA)
+        ADD_TEST(NAME ep-engine-persistence-unit-tests.magma
+                 COMMAND memcached_testapp -E ep -c "backend=magma$<SEMICOLON>collections_enabled=false" --gtest_filter=*PersistToTest*)
+        SET_TESTS_PROPERTIES(ep-engine-persistence-unit-tests.magma PROPERTIES TIMEOUT 300)
+    ENDIF (EP_USE_MAGMA)
     # Defines a testsuite which runs in full and value eviction
     # (persistent), ephemeral buckets (which has no eviction).
     FUNCTION(ADD_TESTSUITE name timeout)
@@ -710,6 +715,15 @@ $<SEMICOLON>dbname=./${name}.ephemeral.comp_active.db")
             SET_TESTS_PROPERTIES(${name}.value_eviction.rocksdb PROPERTIES TIMEOUT ${timeout})
             SET_TESTS_PROPERTIES(${name}.full_eviction.rocksdb PROPERTIES TIMEOUT ${timeout})
         ENDIF (EP_USE_ROCKSDB)
+
+        IF (EP_USE_MAGMA)
+            ADD_TEST(NAME ${name}.value_eviction.magma
+                     COMMAND ${_cmdline} -v -e "dbname=./${name}.value_eviction.magma$<SEMICOLON>backend=magma$<SEMICOLON>collections_enabled=false")
+            ADD_TEST(NAME ${name}.full_eviction.magma
+                     COMMAND ${_cmdline} -v -e "item_eviction_policy=full_eviction$<SEMICOLON>dbname=./${name}.full_eviction.magma$<SEMICOLON>backend=magma$<SEMICOLON>collections_enabled=false")
+            SET_TESTS_PROPERTIES(${name}.value_eviction.magma PROPERTIES TIMEOUT ${timeout})
+            SET_TESTS_PROPERTIES(${name}.full_eviction.magma PROPERTIES TIMEOUT ${timeout})
+        ENDIF (EP_USE_MAGMA)
     ENDFUNCTION()
 
     ADD_TESTSUITE(ep_testsuite 1800)

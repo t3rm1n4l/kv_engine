@@ -18,6 +18,7 @@
 #pragma once
 
 #include "kvstore_config.h"
+#include "libmagma/magma.h"
 
 class Configuration;
 
@@ -52,6 +53,8 @@ public:
     size_t getMagmaWalBufferSize() const {
         return magmaWalBufferSize;
     }
+
+    Magma::Config cfg;
 
 private:
     // Bucket RAM Quota

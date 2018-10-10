@@ -23,9 +23,30 @@
 #include "magma-kvstore_config.h"
 #include "vbucket.h"
 
+#include <mcbp/protocol/unsigned_leb128.h>
 #include <string.h>
 #include <algorithm>
 #include <limits>
+
+void hexDumpLine(const char* buf,
+                 const int len,
+                 std::string& hex,
+                 std::string& ascii) {
+    char tmp[10];
+
+    hex.resize(0);
+    ascii.resize(0);
+
+    for (int i = 0; i < len; i++) {
+        if (isprint(buf[i]))
+            ascii.append(buf[i], 1);
+        else
+            ascii.append(" ", 1);
+
+        snprintf(tmp, sizeof(tmp), "%02x", buf[i]);
+        hex.append(tmp, 2);
+    }
+}
 
 namespace magmakv {
 // MetaData is used to serialize and de-serialize metadata respectively when
@@ -40,6 +61,7 @@ public:
           revSeqno(0),
           flags(0),
           valueSize(0),
+          vbid(0),
           deleted(0),
           version(0),
           datatype(0){};
@@ -51,16 +73,26 @@ public:
              time_t exptime,
              uint64_t cas,
              uint64_t revSeqno,
-             int64_t bySeqno)
+             int64_t bySeqno,
+             Vbid vbid)
         : bySeqno(bySeqno),
           cas(cas),
           exptime(exptime),
           revSeqno(revSeqno),
           flags(flags),
           valueSize(valueSize),
+          vbid(vbid),
           deleted(deleted),
           version(version),
           datatype(datatype){};
+
+    uint64_t GetSeqNum() {
+        return bySeqno;
+    }
+
+    Vbid GetVbID() {
+        return vbid;
+    }
 
 // The `#pragma pack(1)` directive and the order of members are to keep
 // the size of MetaData as small as possible and uniform across different
@@ -72,6 +104,7 @@ public:
     uint64_t revSeqno;
     uint32_t flags;
     uint32_t valueSize;
+    Vbid vbid;
     uint8_t deleted : 1;
     uint8_t version : 7;
     uint8_t datatype;
@@ -91,14 +124,25 @@ public:
      * @param callback Persistence Callback
      * @param del Flag indicating if it is an item deletion or not
      */
-    MagmaRequest(const Item& item, MutationRequestCallback& callback)
+    MagmaRequest(const Item& item, 
+                 MutationRequestCallback& callback,
+                 bool persistDocNamespace)
         : IORequest(item.getVBucketId(),
                     callback,
                     item.isDeleted(),
                     item.getKey()),
           docBody(item.getValue()),
           updatedExistingItem(false) {
-        docMeta = magmakv::MetaData(
+              if (!persistDocNamespace) {
+                  auto noprefix = cb::mcbp::skip_unsigned_leb128<CollectionIDType>(
+                                  {reinterpret_cast<uint8_t*>(const_cast<char*>(getKeyData())), 
+                                   getKeyLen()});
+                  key = {reinterpret_cast<char*>(const_cast<unsigned char*>(noprefix.data())), 
+                      noprefix.size()};
+              } else {
+                  key = {getKeyData(), getKeyLen()};
+              }
+              docMeta = magmakv::MetaData(
                 item.isDeleted(),
                 0,
                 item.getDataType(),
@@ -107,7 +151,8 @@ public:
                 item.isDeleted() ? ep_real_time() : item.getExptime(),
                 item.getCas(),
                 item.getRevSeqno(),
-                item.getBySeqno());
+                item.getBySeqno(),
+                item.getVBucketId());
     }
 
     magmakv::MetaData& getDocMeta() {
@@ -119,11 +164,11 @@ public:
     }
 
     size_t getKeyLen() const {
-        return getKey().size();
+        return key.Len();
     }
 
     const char* getKeyData() const {
-        return getKey().c_str();
+        return key.Data();
     }
     size_t getBodySize() const {
         return docBody ? docBody->valueSize() : 0;
@@ -142,39 +187,25 @@ public:
     }
 
 private:
+    Slice key;
     magmakv::MetaData docMeta;
     value_t docBody;
     bool updatedExistingItem;
 };
 
-class KVMagma {
-public:
-    KVMagma(const Vbid vb, const std::string path) : vbid(vb.get()) {
-        // open magma
-    }
-
-    int SetOrDel(MagmaRequest* req) {
-        if (req->isDelete()) {
-            ; // TODO should we have a merge delta ops for old value?
-        }
-        return 0;
-    }
-
-    int Get(const StoredDocKey& key, void** value, int* valueLen) {
-        return 0;
-    }
-
-    Vbid vbid;
-    int magmaHandleId;
-};
+uint64_t GetSeqNum(const Slice& metaSlice) {
+    magmakv::MetaData* docMeta = reinterpret_cast<magmakv::MetaData*>(
+            const_cast<char*>(metaSlice.Data()));
+    return docMeta->GetSeqNum();
+}
 
 MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
     : KVStore(configuration),
-      vbDB(configuration.getMaxVBuckets()),
       in_transaction(false),
       magmaPath(configuration.getDBName() + "/magma."),
       scanCounter(0),
-      logger(configuration.getLogger()) {
+      logger(configuration.getLogger()),
+      persistDocNamespace(configuration.shouldPersistDocNamespace()) {
     {
         // TODO: storage-team 2018-10-10 Must support dynamic
         // reconfiguration of memtables Quota when bucket RAM
@@ -198,24 +229,36 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
         (void)walBufferSize;
     }
     cachedVBStates.resize(configuration.getMaxVBuckets());
+    // Magma path is unique per shard.
+    configuration.cfg.Path = configuration.getDBName() + "/magma/" +
+                             std::to_string(configuration.getShardId());
+    magmaPath = configuration.cfg.Path;
+    configuration.cfg.GetSeqNum = GetSeqNum;
+
+    // TODO: change to 32b when LSD is completed.
+    configuration.cfg.MinValueSize = 16 * 1024;
 
     createDataDir(configuration.getDBName());
 
-    // Read persisted VBs state
+    magma = std::make_unique<Magma>(configuration.cfg);
+    magma->Open();
+
+    cachedVBStates.resize(configuration.getMaxVBuckets());
+
+// Open up all the LSMs and do recovery
+#if 0
     auto vbids = discoverVBuckets();
     for (auto vbid : vbids) {
-        KVMagma db(vbid, magmaPath);
-        // TODO: may need to read stashed magma state files for caching.
-        // Update stats
         ++st.numLoadedVb;
     }
+#endif
 }
 
 MagmaKVStore::~MagmaKVStore() {
 }
 
 std::string MagmaKVStore::getVBDBSubdir(Vbid vbid) {
-    return magmaPath + std::to_string(vbid.get());
+    return magmaPath + "/" + std::to_string(vbid.get());
 }
 
 std::vector<Vbid> MagmaKVStore::discoverVBuckets() {
@@ -226,11 +269,7 @@ std::vector<Vbid> MagmaKVStore::discoverVBuckets() {
         size_t vbidLength = dir.size() - lastDotIndex - 1;
         std::string vbidStr = dir.substr(lastDotIndex + 1, vbidLength);
         Vbid vbid(std::stoi(vbidStr.c_str()));
-        // Take in account only VBuckets managed by this Shard
-        if ((vbid.get() % configuration.getMaxShards()) ==
-            configuration.getShardId()) {
-            vbids.push_back(vbid);
-        }
+        vbids.push_back(vbid);
     }
     return vbids;
 }
@@ -340,7 +379,8 @@ void MagmaKVStore::set(const Item& item,
     }
     MutationRequestCallback callback;
     callback.setCb = &cb;
-    pendingReqs.push_back(std::make_unique<MagmaRequest>(item, callback));
+    pendingReqs.push_back(std::make_unique<MagmaRequest>(
+                item, callback, shouldPersistDocNamespace()));
 }
 
 GetValue MagmaKVStore::get(const StoredDocKey& key, Vbid vb, bool fetchDelete) {
@@ -352,44 +392,81 @@ GetValue MagmaKVStore::getWithHeader(void* dbHandle,
                                      Vbid vb,
                                      GetMetaOnly getMetaOnly,
                                      bool fetchDelete) {
-    void* value = nullptr;
-    int valueLen = 0;
-    KVMagma db(vb, magmaPath);
-    int status = db.Get(key, &value, &valueLen);
-    if (status < 0) {
+    Slice keySlice;
+    if (!persistDocNamespace) {
+        auto noprefix = cb::mcbp::skip_unsigned_leb128<CollectionIDType>(
+            {key.data(), key.size()});
+        keySlice = {reinterpret_cast<char*>(const_cast<unsigned char*>(noprefix.data())), 
+                noprefix.size()};
+    } else {
+        keySlice = {
+                reinterpret_cast<char*>(const_cast<unsigned char*>(key.data())),
+                key.size()};
+    }
+
+    Slice meta;
+    Slice value = {nullptr, 0};
+    Magma::FetchBuffer idxBuf;
+    Magma::FetchBuffer seqBuf;
+    bool found;
+    Status status =
+            magma->Get(vb.get(), keySlice, idxBuf, seqBuf, meta, value, found);
+    if (!status) {
         logger.warn(
                 "MagmaKVStore::getWithHeader: magma::DB::Lookup error:{}, "
                 "vb:{}",
-                status,
+                status.ErrorCode(),
                 vb);
     }
-    std::string valStr(reinterpret_cast<char*>(value), valueLen);
-    return makeGetValue(vb, key, valStr, getMetaOnly);
+    if (!found)
+        return GetValue{NULL, ENGINE_KEY_ENOENT};
+
+    return makeGetValue(vb, key, value.Data(), getMetaOnly);
 }
 
 void MagmaKVStore::getMulti(Vbid vb, vb_bgfetch_queue_t& itms) {
-    KVMagma db(vb, magmaPath);
     for (auto& it : itms) {
         auto& key = it.first;
-        void* value = nullptr;
-        int valueLen = 0;
-        int status = db.Get(key, &value, &valueLen);
-        if (status < 0) {
-            logger.warn(
-                    "MagmaKVStore::getMulti: magma::DB::Lookup error:{}, "
-                    "vb:{}",
-                    status,
-                    vb);
+        Slice keySlice;
+        if (!persistDocNamespace) {
+            auto noprefix = cb::mcbp::skip_unsigned_leb128<CollectionIDType>(
+                {key.data(), key.size()});
+            keySlice = {reinterpret_cast<char*>(const_cast<unsigned char*>(noprefix.data())), 
+                    noprefix.size()};
+        } else {
+            keySlice = {
+                    reinterpret_cast<char*>(const_cast<unsigned char*>(key.data())),
+                    key.size()};
+        }
+        Slice meta;
+        Slice value = {nullptr, 0};
+        Magma::FetchBuffer idxBuf;
+        Magma::FetchBuffer seqBuf;
+        bool found;
+
+        // std::string hex, ascii;
+        // hexDumpLine(keySlice.Data(), keySlice.Len(), hex, ascii);
+        // std::cerr << "getMulti: " << hex << " : " << ascii << "\n";
+        Status status = magma->Get(
+                vb.get(), keySlice, idxBuf, seqBuf, meta, value, found);
+        if (found) {
+            it.second.value =
+                    makeGetValue(vb, key, value.Data(), it.second.isMetaOnly);
+            GetValue* rv = &it.second.value;
+            for (auto& fetch : it.second.bgfetched_list) {
+                fetch->value = rv;
+            }
+        } else {
+            if (!status) {
+                logger.warn(
+                        "MagmaKVStore::getMulti: magma::DB::Lookup error:{}, "
+                        "vb:{}",
+                        status.ErrorCode(),
+                        vb);
+            }
             for (auto& fetch : it.second.bgfetched_list) {
                 fetch->value->setStatus(ENGINE_KEY_ENOENT);
             }
-            continue;
-        }
-        std::string valStr(reinterpret_cast<char*>(value), valueLen);
-        it.second.value = makeGetValue(vb, key, valStr, it.second.isMetaOnly);
-        GetValue* rv = &it.second.value;
-        for (auto& fetch : it.second.bgfetched_list) {
-            fetch->value = rv;
         }
     }
 }
@@ -409,16 +486,12 @@ void MagmaKVStore::del(const Item& item,
     // they will accumuate forever.
     MutationRequestCallback callback;
     callback.delCb = &cb;
-    pendingReqs.push_back(std::make_unique<MagmaRequest>(item, callback));
+    pendingReqs.push_back(std::make_unique<MagmaRequest>(
+                item, callback, shouldPersistDocNamespace()));
 }
 
 void MagmaKVStore::delVBucket(Vbid vbid, uint64_t vb_version) {
     std::lock_guard<std::mutex> lg(writeLock);
-    // TODO: check if needs lock on `openDBMutex`.
-    vbDB[vbid.get()].reset();
-    // Just destroy the DB in the sub-folder for vbid
-    auto dbname = getVBDBSubdir(vbid);
-    // DESTROY DB...
 }
 
 bool MagmaKVStore::snapshotVBucket(Vbid vbucketId,
@@ -489,13 +562,13 @@ GetValue MagmaKVStore::makeGetValue(Vbid vb,
             makeItem(vb, key, value, getMetaOnly), ENGINE_SUCCESS, -1, 0);
 }
 
-void MagmaKVStore::readVBState(const KVMagma& db) {
+void MagmaKVStore::readVBState(const Vbid vbid) {
     // Largely copied from CouchKVStore
     // TODO refactor out sections common to CouchKVStore
     vbucket_state_t state = vbucket_state_dead;
     uint64_t checkpointId = 0;
     uint64_t maxDeletedSeqno = 0;
-    int64_t highSeqno = readHighSeqnoFromDisk(db);
+    int64_t highSeqno = readHighSeqnoFromDisk(vbid);
     std::string failovers;
     uint64_t purgeSeqno = 0;
     uint64_t lastSnapStart = 0;
@@ -506,7 +579,6 @@ void MagmaKVStore::readVBState(const KVMagma& db) {
 
     auto key = getVbstateKey();
     std::string vbstate;
-    auto vbid = db.vbid;
     cachedVBStates[vbid.get()] =
             std::make_unique<vbucket_state>(state,
                                             checkpointId,
@@ -539,19 +611,39 @@ int MagmaKVStore::saveDocs(
     }
 
     int64_t lastSeqno = 0;
-    int status = 0;
+    std::shared_ptr<Magma::CommitBatch> batch;
+    Status status = magma->NewCommitBatch(vbid.get(), batch);
+    if (!status) {
+        throw std::logic_error(
+                "MagmaKVStore::saveDocs failed creating batch for vbid:" +
+                std::to_string(vbid.get()) + " err=" + status.String());
+    }
 
     auto begin = std::chrono::steady_clock::now();
     {
-        KVMagma db(vbid, magmaPath);
-
         for (const auto& request : commitBatch) {
-            status = db.SetOrDel(request.get());
-            if (status < 0) {
+            Slice key = Slice{request->getKeyData(), request->getKeyLen()};
+            auto docMeta = request->getDocMeta();
+            Slice meta = Slice{reinterpret_cast<char*>(&docMeta),
+                               sizeof(magmakv::MetaData)};
+            Slice value = Slice{reinterpret_cast<char*>(const_cast<void*>(
+                                        request->getBodyData())),
+                                request->getBodySize()};
+
+            if (request->isDelete())
+                status = batch->Delete(key, meta);
+            else
+                status = batch->Set(key, meta, value);
+
+            // std::string hex, ascii;
+            // hexDumpLine(key.Data(), key.Len(), hex, ascii);
+            // std::cerr << "saveDocs: " << hex << " : " << ascii << "\n";
+            if (!status) {
                 logger.warn(
-                        "MagmaKVStore::saveDocs: magma::DB::Insert error:{}, "
+                        "MagmaKVStore::saveDocs: magma::CommitBatch insert "
+                        "error",
                         "vb:{}",
-                        status,
+                        status.ErrorCode(),
                         vbid);
             }
             if (request->getBySeqno() > lastSeqno) {
@@ -560,23 +652,39 @@ int MagmaKVStore::saveDocs(
         }
     }
 
+    status = magma->ExecuteCommitBatch(batch);
+    if (!status) {
+        logger.warn("MagmaKVStore::saveDocs: magma::ExecuteCommitBatch error",
+                    "vb:{}",
+                    status.ErrorCode(),
+                    vbid);
+    }
+
+    status = magma->SyncCommitBatches(false);
+    if (!status) {
+        logger.warn("MagmaKVStore::saveDocs: magma::SyncCommitBatches error",
+                    "vb:{}",
+                    status.ErrorCode(),
+                    vbid);
+    }
+
     st.commitHisto.add(std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::steady_clock::now() - begin));
-    if (status) {
+    if (!status) {
         logger.warn(
                 "MagmaKVStore::saveDocs: magma::DB::Write error:{}, "
                 "vb:%d",
-                status,
+                status.ErrorCode(),
                 vbid.get());
-        return status;
+        return status.ErrorCode();
     }
 
     vbstate->highSeqno = lastSeqno;
 
-    return status;
+    return status.ErrorCode();
 }
 
-int64_t MagmaKVStore::readHighSeqnoFromDisk(const KVMagma& db) {
+int64_t MagmaKVStore::readHighSeqnoFromDisk(const Vbid vbid) {
     return 0;
 }
 
@@ -627,6 +735,70 @@ scan_error_t MagmaKVStore::scan(ScanContext* ctx) {
         startSeqno = ctx->lastReadSeqno + 1;
     }
     (void)startSeqno;
+
+    GetMetaOnly isMetaOnly = ctx->valFilter == ValueFilter::KEYS_ONLY
+                                     ? GetMetaOnly::Yes
+                                     : GetMetaOnly::No;
+
+    bool onlyKeys = (ctx->valFilter == ValueFilter::KEYS_ONLY) ? true : false;
+
+    auto itr = magma->NewSeqIterator(ctx->vbid.get());
+
+    for (itr->Seek(startSeqno, ctx->maxSeqno); itr->Valid(); itr->Next()) {
+        Slice keySlice, metaSlice, valSlice;
+        uint64_t seqno;
+        Status status = itr->GetRecord(keySlice, metaSlice, valSlice, seqno);
+        if (!status) {
+            logger.warn("MagmaKVStore::scan error",
+                        "vb:%d",
+                        status.ErrorCode(),
+                        ctx->vbid.get());
+        }
+
+        // TODO: Need to deal with collections
+        DocKey key(reinterpret_cast<const uint8_t*>(keySlice.Data()),
+                   keySlice.Len(),
+                   DocKeyEncodesCollectionId::No);
+
+        std::string valString(valSlice.Data(), valSlice.Len());
+        std::unique_ptr<Item> itm =
+                makeItem(ctx->vbid, key, valString, isMetaOnly);
+
+#if 0
+        
+        bool includeDeletes =
+            (ctx->docFilter == DocumentFilter::NO_DELETES) ? false : true;
+        bool onlyKeys =
+            (ctx->valFilter == ValueFilter::KEYS_ONLY) ? true : false;
+
+        if (!includeDeletes && itm->isDeleted()) {
+            continue;
+        }
+
+        int64_t byseqno = itm->getBySeqno();
+        auto collectionsRHandle = ctx->collectionsContext.lockCollections(
+            key, true /*allow system*/);
+        CacheLookup lookup(key, byseqno, ctx->vbid, collectionsRHandle);
+        ctx->lookup->callback(lookup);
+
+        int status = ctx->lookup->getStatus();
+
+        if (status == ENGINE_KEY_EEXISTS) {
+            ctx->lastReadSeqno = byseqno;
+            continue;
+        } else if (status == ENGINE_ENOMEM) {
+            return scan_again;
+        }
+#endif
+
+        GetValue rv(std::move(itm), ENGINE_SUCCESS, -1, onlyKeys);
+        ctx->callback->callback(rv);
+        auto callbackStatus = ctx->callback->getStatus();
+        if (callbackStatus == ENGINE_ENOMEM)
+            return scan_again;
+
+        ctx->lastReadSeqno = seqno;
+    }
 
     return scan_success;
 }

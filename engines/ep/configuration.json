@@ -87,7 +87,7 @@
             }
         },
         "backend": {
-            "default": "couchdb",
+            "default": "magma",
             "dynamic": true,
             "type": "std::string",
             "validator": {
