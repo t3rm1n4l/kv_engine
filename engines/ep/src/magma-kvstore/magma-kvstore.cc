@@ -236,7 +236,7 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
     configuration.cfg.GetSeqNum = GetSeqNum;
 
     // TODO: change to 32b when LSD is completed.
-    configuration.cfg.MinValueSize = 16 * 1024;
+    configuration.cfg.MinValueSize = 100;
 
     createDataDir(configuration.getDBName());
 
