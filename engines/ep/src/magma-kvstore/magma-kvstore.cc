@@ -233,6 +233,7 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
     configuration.cfg.Path = configuration.getDBName() + "/magma/" +
                              std::to_string(configuration.getShardId());
     configuration.cfg.EnableWAL = false;
+    configuration.cfg.MaxCommitPoints = 0;
 
     magmaPath = configuration.cfg.Path;
     configuration.cfg.GetSeqNum = GetSeqNum;
