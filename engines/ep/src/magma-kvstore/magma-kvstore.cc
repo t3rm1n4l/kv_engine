@@ -232,6 +232,8 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
     // Magma path is unique per shard.
     configuration.cfg.Path = configuration.getDBName() + "/magma/" +
                              std::to_string(configuration.getShardId());
+    configuration.cfg.EnableWAL = false;
+
     magmaPath = configuration.cfg.Path;
     configuration.cfg.GetSeqNum = GetSeqNum;
 
