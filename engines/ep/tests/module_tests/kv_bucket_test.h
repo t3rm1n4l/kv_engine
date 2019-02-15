@@ -247,6 +247,10 @@ public:
 
     // The (mock) server cookie.
     const void* cookie;
+
+    // Magma requires that every item have a unique monotonically growing
+    // seq#. 0 or items with same value is not acceptable.
+    int64_t seqno{1};
 };
 
 /**

@@ -62,6 +62,11 @@ void EventuallyPersistentEngineTest::SetUp() {
     // Set the bucketType
     config += ";bucket_type=" + bucketType;
 
+    char* use_magma = getenv("EP_USE_MAGMA");
+    if (use_magma && strcmp(use_magma, "1") == 0) {
+        config += ";backend=magma";
+    }
+
     EXPECT_EQ(ENGINE_SUCCESS, engine->initialize(config.c_str()))
         << "Failed to initialize engine.";
 
@@ -97,7 +102,7 @@ void EventuallyPersistentEngineTest::store_item(Vbid vbid,
               value.size(),
               PROTOCOL_BINARY_RAW_BYTES,
               0 /*cas*/,
-              -1 /*seqno*/,
+              ++seqno /*seqno*/,
               vbid);
     uint64_t cas;
     EXPECT_EQ(ENGINE_SUCCESS,

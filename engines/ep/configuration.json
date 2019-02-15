@@ -1012,16 +1012,46 @@
                 }
             }
         },
+        "magma_lsd_buffer_size": {
+            "default": "8192",
+            "dynamic": false,
+            "descr": "LSD Buffer Size",
+            "type": "size_t"
+        },
+        "magma_lsd_fragmentation_ratio": {
+            "default": "0.5",
+            "dynamic": false,
+            "descr": "LSD Fragmentation Ratio",
+            "type": "float"
+        },
         "magma_max_commit_points": {
-            "default": "3",
+            "default": "5",
             "dynamic": false,
             "descr": "Maximum commit points to retain for rollback.",
             "type": "size_t"
         },
-        "magma_max_write_cache": {
-            "default": "67108864",
+        "magma_commit_point_interval": {
+            "default": "2",
             "dynamic": false,
-            "descr": "Max memory used for write buffering.",
+            "descr": "Commit Point interval in minutes",
+            "type": "size_t"
+        },
+        "magma_min_value_size": {
+            "default": "48",
+            "dynamic": false,
+            "descr": "Values large than this will be store in the seq Index",
+            "type": "size_t"
+        },
+        "magma_max_write_cache": {
+            "default": "134217728",
+            "dynamic": false,
+            "descr": "Max memory used for write cache buffering.",
+            "type": "size_t"
+        },
+        "magma_min_write_cache": {
+            "default": "8388608",
+            "dynamic": false,
+            "descr": "Min memory used for write cache buffering.",
             "type": "size_t"
         },
         "magma_mem_quota_ratio": {
@@ -1030,10 +1060,10 @@
             "dynamic": true,
             "type": "float"
         },
-        "magma_min_value_size": {
-            "default": "32",
+        "magma_wal_buffer_size": {
+            "default": "2097152",
             "dynamic": false,
-            "descr": "Values smaller than this will not be separated from their keys",
+            "descr": "Max memory used for the write ahead log.",
             "type": "size_t"
         },
         "magma_num_flushers": {
@@ -1048,11 +1078,35 @@
             "descr": "Number of background compactor threads.",
             "type": "size_t"
         },
-        "magma_wal_buffer_size": {
-            "default": "2097152",
+        "magma_wal_sync_interval": {
+            "default": "0",
             "dynamic": false,
-            "descr": "Max memory used for the write ahead log.",
+            "descr": "Number of ms to wait between Commit Batches before sync'ing",
             "type": "size_t"
+        },
+        "magma_batch_commit_point": {
+            "default": "false",
+            "dynamic": false,
+            "descr": "Create a Commit Point with each Commit Batch; testing only",
+            "type": "bool"
+        },
+        "magma_use_upsert": {
+            "default": "true",
+            "dynamic": false,
+            "descr": "Use magma internal lookup for Set",
+            "type": "bool"
+        },
+        "magma_expiry_frag_threshold": {
+            "default": "0.25",
+            "dynamic": false,
+            "descr": "Threshold at which exipiry will be applied during compaction.",
+            "type": "float"
+        },
+        "magma_tombstone_frag_threshold": {
+            "default": "0.25",
+            "dynamic": false,
+            "descr": "Threshold at which tombstones will be applied during compaction.",
+            "type": "float"
         },
         "retain_erroneous_tombstones": {
             "default": "true",

@@ -47,8 +47,11 @@ TEST_F(BucketLoggerEngineTest, EngineTest) {
     cb::logger::flush();
     files = cb::io::findFilesWithPrefix(config.filename);
     EXPECT_EQ(1,
+            // We need to look for a string that is common to all engines,
+            // not just couchstore. ie) the configuation has
+            // backend=magma appended to the string so can't use that
+            // string to verify.
               countInFile(files.back(),
-                          "INFO (default) EPEngine::initialize: using "
-                          "configuration:\"dbname=ep_engine_ep_unit_tests_db"
-                          ";bucket_type=persistent\""));
+                          "INFO ---------- Opening logfile: "
+                          "spdlogger_engine_test.000000.txt"));
 }

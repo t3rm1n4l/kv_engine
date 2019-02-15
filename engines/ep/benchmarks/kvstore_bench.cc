@@ -22,6 +22,9 @@
 #ifdef EP_USE_ROCKSDB
 #include "rocksdb-kvstore/rocksdb-kvstore_config.h"
 #endif
+#ifdef EP_USE_MAGMA
+#include "magma-kvstore/magma-kvstore_config.h"
+#endif
 #include "tests/module_tests/test_helpers.h"
 #include "vbucket_state.h"
 
@@ -34,6 +37,10 @@ enum Storage {
 #ifdef EP_USE_ROCKSDB
     ,
     ROCKSDB
+#endif
+#ifdef EP_USE_MAGMA
+    ,
+    MAGMA
 #endif
 };
 
@@ -100,6 +107,14 @@ protected:
             config.setBackend("rocksdb");
             kvstoreConfig =
                     std::make_unique<RocksDBKVStoreConfig>(config, shardId);
+            break;
+#endif
+#ifdef EP_USE_MAGMA
+        case MAGMA:
+            state.SetLabel("Magma");
+            config.setBackend("magma");
+            kvstoreConfig =
+                    std::make_unique<MagmaKVStoreConfig>(config, shardId);
             break;
 #endif
         }
@@ -202,5 +217,8 @@ BENCHMARK_REGISTER_F(KVStoreBench, Scan)
         ->Args({NUM_ITEMS, COUCHSTORE})
 #ifdef EP_USE_ROCKSDB
         ->Args({NUM_ITEMS, ROCKSDB})
+#endif
+#ifdef EP_USE_MAGMA
+        ->Args({NUM_ITEMS, MAGMA})
 #endif
         ;

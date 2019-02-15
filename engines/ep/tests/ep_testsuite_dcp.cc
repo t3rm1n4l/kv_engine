@@ -7366,7 +7366,8 @@ BaseTestCase testsuite_testcases[] = {
                  // TODO RDB: Cannot store any item (ENGINE_ENOMEM).
                  // Needs to resize 'max_size' to consider RocksDB
                  // pre-allocations.
-                 prepare_skip_broken_under_rocks,
+                 // TODO MAGMA: same as rocks
+                 prepare_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("test dcp cursor dropping (replication)",
                  test_dcp_cursor_dropping_replication,
@@ -7391,7 +7392,8 @@ BaseTestCase testsuite_testcases[] = {
                  // TODO RDB: Cannot store any item (ENGINE_ENOMEM).
                  // Needs to resize 'max_size' to consider RocksDB
                  // pre-allocations.
-                 prepare_skip_broken_under_rocks,
+                 prepare_skip_broken_under_not_couchstore,
+                 // TODO MAGMA: same as rocks
                  cleanup),
         TestCase("test dcp cursor dropping backfill",
                  test_dcp_cursor_dropping_backfill,
@@ -7406,7 +7408,8 @@ BaseTestCase testsuite_testcases[] = {
                  // TODO RDB: Cannot store any item (ENGINE_ENOMEM).
                  // Needs to resize 'max_size' to consider RocksDB
                  // pre-allocations.
-                 prepare_skip_broken_under_rocks,
+                 prepare_skip_broken_under_not_couchstore,
+                 // TODO MAGMA: same as rocks
                  cleanup),
         TestCase("test dcp stream takeover", test_dcp_takeover, test_setup,
                 teardown, "chk_remover_stime=1", prepare, cleanup),
@@ -7659,5 +7662,4 @@ BaseTestCase testsuite_testcases[] = {
                  cleanup),
         TestCase("test noop mandatory",test_dcp_noop_mandatory,
                  test_setup, teardown, NULL, prepare, cleanup),
-
         TestCase(NULL, NULL, NULL, NULL, NULL, prepare, cleanup)};

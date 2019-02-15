@@ -966,6 +966,12 @@ ENGINE_ERROR_CODE KVBucket::checkForDBExistence(Vbid db_file_id) {
         if (!vb) {
             return ENGINE_NOT_MY_VBUCKET;
         }
+    }
+    else if (backend.compare("magma") == 0) {
+        VBucketPtr vb = vbMap.getBucket(db_file_id);
+        if (!vb) {
+            return ENGINE_NOT_MY_VBUCKET;
+        }
     } else {
         EP_LOG_WARN("Unknown backend specified for db file id: {}",
                     db_file_id.get());

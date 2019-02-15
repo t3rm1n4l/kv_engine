@@ -244,6 +244,26 @@ enum test_result prepare_ep_bucket_skip_broken_under_rocks(engine_test_t* test) 
     return prepare_ep_bucket(test);
 }
 
+enum test_result prepare_ep_bucket_skip_broken_under_magma(engine_test_t* test) {
+    std::string cfg{test->cfg};
+    if (cfg.find("backend=magma") != std::string::npos) {
+        return SKIPPED_UNDER_MAGMA;
+    }
+
+    // Perform whatever prep the ep bucket function wants.
+    return prepare_ep_bucket(test);
+}
+
+enum test_result prepare_ep_bucket_skip_broken_under_not_couchstore(engine_test_t* test) {
+    std::string cfg{test->cfg};
+    if (cfg.find("backend=couchstore") == std::string::npos) {
+        return SKIPPED_UNDER_NOT_COUCHSTORE;
+    }
+
+    // Perform whatever prep the ep bucket function wants.
+    return prepare_ep_bucket(test);
+}
+
 enum test_result prepare_ep_bucket_skip_broken_under_rocks_full_eviction(
         engine_test_t* test) {
     std::string cfg{test->cfg};
@@ -259,10 +279,60 @@ enum test_result prepare_ep_bucket_skip_broken_under_rocks_full_eviction(
     return prepare_ep_bucket(test);
 }
 
+enum test_result prepare_ep_bucket_skip_broken_under_magma_full_eviction(
+        engine_test_t* test) {
+    std::string cfg{test->cfg};
+    if (cfg.find("bucket_type=ephemeral") != std::string::npos) {
+        return SKIPPED;
+    }
+
+    if (cfg.find("backend=magma") != std::string::npos &&
+        cfg.find("item_eviction_policy=full_eviction")) {
+        return SKIPPED_UNDER_MAGMA;
+    }
+
+    return prepare_ep_bucket(test);
+}
+
+enum test_result prepare_ep_bucket_skip_broken_under_not_couchstore_full_eviction(
+        engine_test_t* test) {
+    std::string cfg{test->cfg};
+    if (cfg.find("bucket_type=ephemeral") != std::string::npos) {
+        return SKIPPED;
+    }
+
+    if (cfg.find("backend=couchstore") == std::string::npos &&
+        cfg.find("item_eviction_policy=full_eviction")) {
+        return SKIPPED_UNDER_NOT_COUCHSTORE;
+    }
+
+    return prepare_ep_bucket(test);
+}
+
 enum test_result prepare_skip_broken_under_rocks(engine_test_t* test) {
     std::string cfg{test->cfg};
     if (cfg.find("backend=rocksdb") != std::string::npos) {
         return SKIPPED_UNDER_ROCKSDB;
+    }
+
+    // Perform whatever prep the "base class" function wants.
+    return prepare(test);
+}
+
+enum test_result prepare_skip_broken_under_magma(engine_test_t* test) {
+    std::string cfg{test->cfg};
+    if (cfg.find("backend=magma") != std::string::npos) {
+        return SKIPPED_UNDER_MAGMA;
+    }
+
+    // Perform whatever prep the "base class" function wants.
+    return prepare(test);
+}
+
+enum test_result prepare_skip_broken_under_not_couchstore(engine_test_t* test) {
+    std::string cfg{test->cfg};
+    if (cfg.find("backend=couchstore") == std::string::npos) {
+        return SKIPPED_UNDER_NOT_COUCHSTORE;
     }
 
     // Perform whatever prep the "base class" function wants.
@@ -311,7 +381,28 @@ enum test_result prepare_full_eviction_skip_under_rocks(engine_test_t *test) {
 
     // Perform whatever prep the "base class" function wants.
     return prepare_full_eviction(test);
+}
 
+enum test_result prepare_full_eviction_skip_under_magma(engine_test_t *test) {
+
+    std::string cfg{test->cfg};
+    if (cfg.find("backend=magma") != std::string::npos) {
+        return SKIPPED_UNDER_MAGMA;
+    }
+
+    // Perform whatever prep the "base class" function wants.
+    return prepare_full_eviction(test);
+}
+
+enum test_result prepare_full_eviction_skip_under_not_couchstore(engine_test_t *test) {
+
+    std::string cfg{test->cfg};
+    if (cfg.find("backend=couchstore") == std::string::npos) {
+        return SKIPPED_UNDER_NOT_COUCHSTORE;
+    }
+
+    // Perform whatever prep the "base class" function wants.
+    return prepare_full_eviction(test);
 }
 
 enum test_result prepare_skip_broken_under_rocks_full_eviction(
@@ -321,6 +412,34 @@ enum test_result prepare_skip_broken_under_rocks_full_eviction(
         if (cfg.find("backend=rocksdb") != std::string::npos &&
             cfg.find("item_eviction_policy=full_eviction")) {
             return SKIPPED_UNDER_ROCKSDB;
+        }
+    }
+
+    // Perform whatever prep the "base class" function wants.
+    return prepare_full_eviction(test);
+}
+
+enum test_result prepare_skip_broken_under_magma_full_eviction(
+        engine_test_t* test) {
+    std::string cfg{test->cfg};
+    if (cfg.find("bucket_type=ephemeral") == std::string::npos) {
+        if (cfg.find("backend=magma") != std::string::npos &&
+            cfg.find("item_eviction_policy=full_eviction")) {
+            return SKIPPED_UNDER_MAGMA;
+        }
+    }
+
+    // Perform whatever prep the "base class" function wants.
+    return prepare_full_eviction(test);
+}
+
+enum test_result prepare_skip_broken_under_not_couchstore_full_eviction(
+        engine_test_t* test) {
+    std::string cfg{test->cfg};
+    if (cfg.find("bucket_type=ephemeral") == std::string::npos) {
+        if (cfg.find("backend=couchstore") == std::string::npos &&
+            cfg.find("item_eviction_policy=full_eviction")) {
+            return SKIPPED_UNDER_NOT_COUCHSTORE;
         }
     }
 

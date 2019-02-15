@@ -2419,7 +2419,8 @@ BaseTestCase testsuite_testcases[] = {
                  // still find a key after deleting the DB file and evicting
                  // the key in the internal MemTable (which is also used as
                  // read-cache).
-                 prepare_ep_bucket_skip_broken_under_rocks,
+                 // MAGMA: same as rocks
+                 prepare_ep_bucket_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("vbucket deletion doesn't affect new data",
                  test_bug7023,

@@ -98,6 +98,14 @@ public:
         periodicSyncBytes = bytes;
     }
 
+    void setUseUpsert(bool torf) {
+        useUpsert = torf;
+    }
+
+    bool shouldUseUpsert() {
+        return useUpsert;
+    }
+
 private:
     class ConfigChangeListener;
 
@@ -108,6 +116,9 @@ private:
     uint16_t shardId;
     BucketLogger* logger;
     bool buffered;
+
+    // If upsert is available, use it
+    bool useUpsert;
 
     /**
      * If non-zero, tell storage layer to issue a sync() operation after every

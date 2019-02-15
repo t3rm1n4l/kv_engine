@@ -108,7 +108,8 @@ bool BloomFilterCallback::initTempFilter(Vbid vbucketId) {
     size_t estimated_count;
     size_t num_deletes = 0;
     try {
-        num_deletes = store.getROUnderlying(vbucketId)->getNumPersistedDeletes(vbucketId);
+        num_deletes = store.getROUnderlying(vbucketId)->getNumPersistedDeletes(
+                vbucketId);
     } catch (std::runtime_error& re) {
         EP_LOG_WARN(
                 "BloomFilterCallback::initTempFilter: runtime error while "
@@ -211,7 +212,7 @@ public:
             }
         } else if (key == "retain_erroneous_tombstones") {
             bucket.setRetainErroneousTombstones(value);
-        } else  {
+        } else {
             EP_LOG_WARN("Failed to change value for unknown variable, {}", key);
         }
     }
@@ -241,8 +242,8 @@ EPBucket::EPBucket(EventuallyPersistentEngine& theEngine)
 
     retainErroneousTombstones = config.isRetainErroneousTombstones();
     config.addValueChangedListener(
-           "retain_erroneous_tombstones",
-           std::make_unique<ValueChangedListener>(*this));
+            "retain_erroneous_tombstones",
+            std::make_unique<ValueChangedListener>(*this));
 
     initializeWarmupTask();
 }
@@ -322,7 +323,7 @@ static bool canDeDuplicate(Item* lastFlushed, Item& candidate) {
 }
 
 std::pair<bool, size_t> EPBucket::flushVBucket(Vbid vbid) {
-    KVShard *shard = vbMap.getShardByVbId(vbid);
+    KVShard* shard = vbMap.getShardByVbId(vbid);
     if (diskDeleteAll && !deleteAllTaskCtx.delay) {
         if (shard->getId() == EP_PRIMARY_SHARD) {
             flushOneDeleteAll();
@@ -362,7 +363,7 @@ std::pair<bool, size_t> EPBucket::flushVBucket(Vbid vbid) {
             }
             rwUnderlying->optimizeWrites(items);
 
-            Item *prev = NULL;
+            Item* prev = NULL;
             auto vbstate = vb->getVBucketState();
             uint64_t maxSeqno = 0;
             auto minSeqno = std::numeric_limits<uint64_t>::max();
@@ -412,7 +413,6 @@ std::pair<bool, size_t> EPBucket::flushVBucket(Vbid vbid) {
                     // processed.
                     --stats.diskQueueSize;
                     vb->doStatsForFlushing(*item, item->size());
-
                 } else if (!canDeDuplicate(prev, *item)) {
                     // This is an item we must persist.
                     prev = item.get();
@@ -450,7 +450,6 @@ std::pair<bool, size_t> EPBucket::flushVBucket(Vbid vbid) {
                 }
             }
 
-
             {
                 ReaderLockHolder rlh(vb->getStateLock());
                 if (vb->getState() == vbucket_state_active) {
@@ -487,8 +486,8 @@ std::pair<bool, size_t> EPBucket::flushVBucket(Vbid vbid) {
                     options = VBStatePersist::VBSTATE_PERSIST_WITH_COMMIT;
                 }
 
-                if (rwUnderlying->snapshotVBucket(vb->getId(), vbstate,
-                                                  options) != true) {
+                if (rwUnderlying->snapshotVBucket(
+                            vb->getId(), vbstate, options) != true) {
                     return {true, 0};
                 }
 
@@ -531,9 +530,11 @@ std::pair<bool, size_t> EPBucket::flushVBucket(Vbid vbid) {
                             flush_end - flush_start)
                             .count();
 
-            lastTransTimePerItem.store((items_flushed == 0) ? 0 :
-                                       static_cast<double>(trans_time) /
-                                       static_cast<double>(items_flushed));
+            lastTransTimePerItem.store(
+                    (items_flushed == 0)
+                            ? 0
+                            : static_cast<double>(trans_time) /
+                                      static_cast<double>(items_flushed));
             stats.cumulativeFlushTime.fetch_add(trans_time);
             stats.flusher_todo.store(0);
             stats.totalPersistVBState++;
@@ -761,10 +762,10 @@ void EPBucket::flushOneDelOrSet(const queued_item& qi, VBucketPtr& vb) {
     auto dirtyAge = std::chrono::seconds(ep_current_time() - queued);
     stats.dirtyAgeHisto.add(dirtyAge);
     stats.dirtyAge.store(static_cast<rel_time_t>(dirtyAge.count()));
-    stats.dirtyAgeHighWat.store(std::max(stats.dirtyAge.load(),
-                                         stats.dirtyAgeHighWat.load()));
+    stats.dirtyAgeHighWat.store(
+            std::max(stats.dirtyAge.load(), stats.dirtyAgeHighWat.load()));
 
-    KVStore *rwUnderlying = getRWUnderlying(qi->getVBucketId());
+    KVStore* rwUnderlying = getRWUnderlying(qi->getVBucketId());
     if (!deleted) {
         // TODO: Need to separate disk_insert from disk_update because
         // bySeqno doesn't give us that information.

@@ -26,6 +26,9 @@
 #ifdef EP_USE_ROCKSDB
 #include "rocksdb-kvstore/rocksdb-kvstore_config.h"
 #endif
+#ifdef EP_USE_MAGMA
+#include "magma-kvstore/magma-kvstore_config.h"
+#endif
 #include "collections/collection_persisted_stats.h"
 #include "src/internal.h"
 #include "test_helpers.h"
@@ -2170,6 +2173,12 @@ void KVStoreParamTest::SetUp() {
                 std::make_unique<RocksDBKVStoreConfig>(config, 0 /*shardId*/);
     }
 #endif
+#ifdef EP_USE_MAGMA
+    else if (config.getBackend() == "magma") {
+        kvstoreConfig = std::make_unique<MagmaKVStoreConfig>(
+            config, 0 /*shardId*/);
+    }
+#endif
     kvstore = setup_kv_store(*kvstoreConfig);
 }
 
@@ -2222,6 +2231,8 @@ TEST_P(KVStoreParamTest, TestPersistenceCallbacksForDel) {
     // Store an item
     auto key = makeStoredDocKey("key");
     Item item(key, 0, 0, "value", 5);
+    item.setBySeqno(1);
+
     // Use NiceMock to suppress the GMock warning that the `set` callback is
     // called but not considered in any EXCPECT_CALL (GMock warning is
     // "Uninteresting mock function call".)
@@ -2236,6 +2247,7 @@ TEST_P(KVStoreParamTest, TestPersistenceCallbacksForDel) {
     EXPECT_CALL(mpc, callback(_, delCount)).Times(0);
 
     item.setDeleted();
+    item.setBySeqno(2);
     kvstore->del(item, std::ref(mpc));
 
     // Expect that the DEL callback will be called once after `commit`
@@ -2302,6 +2314,7 @@ TEST_P(KVStoreParamTest, DelVBucketConcurrentOperationsTest) {
     auto set = [&] {
         for (int i = 0; i < 10; i++) {
             kvstore->begin(std::make_unique<TransactionContext>());
+            item.setBySeqno(i+1);
             kvstore->set(item, wc);
             kvstore->commit(flush);
         }
@@ -2335,10 +2348,11 @@ TEST_P(KVStoreParamTest, CompactAndScan) {
     WriteCallback wc;
     for (int i = 1; i < 10; i++) {
         kvstore->begin(std::make_unique<TransactionContext>());
-        kvstore->set(make_item(Vbid(0),
-                               makeStoredDocKey(std::string(i, 'k')),
-                               "value"),
-                     wc);
+        auto itm = make_item(Vbid(0), 
+                             makeStoredDocKey(std::string(i, 'k')), 
+                             "value");
+        itm.setBySeqno(i+1);
+        kvstore->set(itm, wc);
         kvstore->commit(flush);
     }
 
@@ -2481,6 +2495,9 @@ TEST_P(KVStoreParamTest, GetRangeDeleted) {
 static std::string kvstoreTestParams[] = {
 #ifdef EP_USE_ROCKSDB
         "rocksdb",
+#endif
+#ifdef EP_USE_MAGMA
+        "magma",
 #endif
         "couchdb"};
 

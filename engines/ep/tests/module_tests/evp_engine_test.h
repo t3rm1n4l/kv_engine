@@ -66,6 +66,8 @@ protected:
     std::string bucketType;
 
     const void* cookie = nullptr;
+
+    int64_t seqno{1};
 };
 
 /* Tests parameterised over ephemeral and persistent buckets

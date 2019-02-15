@@ -29,6 +29,7 @@
 #include <getopt.h>
 #include <logger/logger.h>
 #include <memcached/server_log_iface.h>
+#include <stdlib.h>
 
 /* static storage for environment variable set by putenv(). */
 static char allow_no_stats_env[] = "ALLOW_NO_STATS_UPDATE=yeah";
@@ -45,10 +46,15 @@ int main(int argc, char **argv) {
     int cmd;
     bool invalid_argument = false;
     while (!invalid_argument &&
-           (cmd = getopt(argc, argv, "v")) != EOF) {
+           (cmd = getopt(argc, argv, "vm")) != EOF) {
         switch (cmd) {
         case 'v':
             verbose_logging = true;
+            break;
+        case 'm':
+            char tmp[50];
+            snprintf(tmp, sizeof(tmp), "EP_USE_MAGMA=1");
+            putenv(tmp);
             break;
         default:
             std::cerr << "Usage: " << argv[0] << " [-v] [gtest_options...]" << std::endl

@@ -135,7 +135,9 @@ bool KVStore::updateCachedVBState(Vbid vbid, const vbucket_state& newState) {
         //Check if there's a need for persistence
         if (vbState->needsToBePersisted(newState)) {
             vbState->state = newState.state;
-            vbState->failovers = newState.failovers;
+            if (!newState.failovers.empty()) {
+                vbState->failovers = newState.failovers;
+            }
         } else {
             state_change_detected = false;
         }

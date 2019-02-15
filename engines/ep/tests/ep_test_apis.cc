@@ -1243,7 +1243,7 @@ void compact_db(EngineIface* h,
 
     const auto backend = get_str_stat(h, "ep_backend");
 
-    if (backend == "couchdb") {
+    if (backend == "couchdb" || backend == "magma") {
         if (ret == ENGINE_ENOTSUP) {
             // Ephemeral buckets return ENGINE_ENOTSUP, and this method is
             // called from a lot of the test cases we run on all bucket
@@ -1730,6 +1730,10 @@ void validate_store_resp(ENGINE_ERROR_CODE ret, int& num_items)
         case ENGINE_TMPFAIL:
             /* TMPFAIL means we are hitting high memory usage; retry */
             break;
+#ifdef EP_USE_MAGMA
+        case ENGINE_ENOMEM:
+            break;
+#endif
         default:
             check(false,
                   ("write_items_upto_mem_perc: Unexpected response from "

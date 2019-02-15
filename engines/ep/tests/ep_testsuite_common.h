@@ -207,6 +207,8 @@ enum test_result prepare_ep_bucket(engine_test_t* test);
  * equivalent test constructed exclusively for RocksDB.
  */
 enum test_result prepare_skip_broken_under_rocks(engine_test_t* test);
+enum test_result prepare_skip_broken_under_magma(engine_test_t* test);
+enum test_result prepare_skip_broken_under_not_couchstore(engine_test_t* test);
 
 /**
  * Prepare a test which is only applicable to a persistent bucket, but
@@ -216,6 +218,8 @@ enum test_result prepare_skip_broken_under_rocks(engine_test_t* test);
  * all applicable tests should eventually pass.
  */
 enum test_result prepare_ep_bucket_skip_broken_under_rocks(engine_test_t* test);
+enum test_result prepare_ep_bucket_skip_broken_under_magma(engine_test_t* test);
+enum test_result prepare_ep_bucket_skip_broken_under_not_couchstore(engine_test_t* test);
 
 /**
  * Prepare a test which is only applicable to a persistent bucket, but is
@@ -223,6 +227,10 @@ enum test_result prepare_ep_bucket_skip_broken_under_rocks(engine_test_t* test);
  * mode and so should be skipped.
  */
 enum test_result prepare_ep_bucket_skip_broken_under_rocks_full_eviction(
+        engine_test_t* test);
+enum test_result prepare_ep_bucket_skip_broken_under_magma_full_eviction(
+        engine_test_t* test);
+enum test_result prepare_ep_bucket_skip_broken_under_not_couchstore_full_eviction(
         engine_test_t* test);
 
 /**
@@ -233,6 +241,10 @@ enum test_result prepare_ep_bucket_skip_broken_under_rocks_full_eviction(
  * These tests should eventually pass in both cases.
  */
 enum test_result prepare_skip_broken_under_ephemeral_and_rocks(
+        engine_test_t* test);
+enum test_result prepare_skip_broken_under_ephemeral_and_magma(
+        engine_test_t* test);
+enum test_result prepare_skip_broken_under_ephemeral_and_not_couchstore(
         engine_test_t* test);
 
 /**
@@ -251,11 +263,17 @@ enum test_result prepare_full_eviction(engine_test_t *test);
  * Prepare a test which is only applicable to full eviction mode and not rocksdb
  */
 enum test_result prepare_full_eviction_skip_under_rocks(engine_test_t *test);
+enum test_result prepare_full_eviction_skip_under_magma(engine_test_t *test);
+enum test_result prepare_full_eviction_skip_under_not_couchstore(engine_test_t *test);
 
 /**
  * Prepare a test which is not applicable for full eviction when running rocksdb
  */
 enum test_result prepare_skip_broken_under_rocks_full_eviction(
+        engine_test_t* test);
+enum test_result prepare_skip_broken_under_magma_full_eviction(
+        engine_test_t* test);
+enum test_result prepare_skip_broken_under_not_couchstore_full_eviction(
         engine_test_t* test);
 
 /**

@@ -1030,6 +1030,14 @@ static int report_test(const char* name,
         msg="SKIPPED_UNDER_ROCKSDB";
         color = 32;
         break;
+    case SKIPPED_UNDER_MAGMA:
+        msg="SKIPPED_UNDER_MAGMA";
+        color = 32;
+        break;
+    case SKIPPED_UNDER_NOT_COUCHSTORE:
+        msg="SKIPPED_UNDER_NOT_COUCHSTORE";
+        color = 32;
+        break;
     default:
         color = 31;
         msg = "UNKNOWN";
@@ -1268,6 +1276,18 @@ static test_result execute_test(engine_test_t test,
             if (cfg.find("max_size") == std::string::npos) {
                 cfg.append("max_size=1073741824;");
             }
+            test.cfg = cfg.c_str();
+        } else if (std::string(test.cfg).find("backend=magma") !=
+                   std::string::npos) {
+            cfg.assign(test.cfg);
+            if (!cfg.empty() && cfg.back() != ';') {
+                cfg.append(";");
+            }
+            cfg.append("magma_max_commit_points=20;"
+                       "magma_batch_commit_point=true;"
+                       "magma_commit_point_interval=0;"
+                       "magma_num_flushers=1;"
+                       "magma_num_compactors=1;");
             test.cfg = cfg.c_str();
         }
     }

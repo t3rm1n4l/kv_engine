@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <sstream>
 #include <string>
 
 namespace Collections {
@@ -44,6 +45,12 @@ struct PersistedStats {
 
     uint64_t itemCount;
     uint64_t highSeqno;
+
+    std::string to_string() {
+        std::stringstream ss;
+        ss << "itemCount:" << itemCount << " highSeqno:" << highSeqno;
+        return ss.str();
+    }
 };
 } // end namespace VB
 } // end namespace Collections

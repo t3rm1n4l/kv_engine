@@ -1632,8 +1632,15 @@ uint16_t Warmup::getNumKVStores()
     Configuration& config = store.getEPEngine().getConfiguration();
     if (config.getBackend().compare("couchdb") == 0) {
         return 1;
-    } else if (config.getBackend().compare("rocksdb") == 0) {
-        return store.vbMap.getNumShards();
+
+    // For data stores that utilize shards, have to use
+    // store.vbMap.shards map because many tests only create
+    // 1 shard, not the configured amount and unfortunately
+    // store.getROUnderlyingByShard() doesn't return null on
+    // a non-existent shard, it returns garbage (probably a bug).
+    } else if (config.getBackend().compare("rocksdb") == 0 ||
+               config.getBackend().compare("magma") == 0) {
+        return store.vbMap.shards.size();
     }
     return 0;
 }
@@ -1643,16 +1650,18 @@ void Warmup::populateShardVbStates()
     uint16_t numKvs = getNumKVStores();
 
     for (size_t i = 0; i < numKvs; i++) {
-        std::vector<vbucket_state *> allVbStates =
-                     store.getROUnderlyingByShard(i)->listPersistedVbuckets();
-        for (uint16_t vb = 0; vb < allVbStates.size(); vb++) {
-            if (!allVbStates[vb] || allVbStates[vb]->state == vbucket_state_dead) {
-                continue;
-            }
+        auto kvstore = store.getROUnderlyingByShard(i);
+        if (kvstore) {
+            std::vector<vbucket_state *> allVbStates = kvstore->listPersistedVbuckets();
+            for (uint16_t vb = 0; vb < allVbStates.size(); vb++) {
+                if (!allVbStates[vb] || allVbStates[vb]->state == vbucket_state_dead) {
+                    continue;
+                }
             std::map<Vbid, vbucket_state>& shardVB =
-                    shardVbStates[vb % store.vbMap.getNumShards()];
+            shardVbStates[vb % store.vbMap.getNumShards()];
             shardVB.insert(std::pair<Vbid, vbucket_state>(Vbid(vb),
-                                                          *(allVbStates[vb])));
+            *(allVbStates[vb])));
+            }
         }
     }
 

@@ -20,11 +20,20 @@
 MagmaKVStoreConfig::MagmaKVStoreConfig(Configuration& config, uint16_t shardid)
     : KVStoreConfig(config, shardid) {
     bucketQuota = config.getMaxSize();
+    magmaLsdBufferSize = config.getMagmaLsdBufferSize();
+    magmaLsdFragmentationRatio = config.getMagmaLsdFragmentationRatio();
     magmaMaxCommitPoints = config.getMagmaMaxCommitPoints();
-    magmaMaxWriteCache = config.getMagmaMaxWriteCache();
-    magmaMemQuotaRatio = config.getMagmaMemQuotaRatio();
+    magmaCommitPointInterval = config.getMagmaCommitPointInterval();
     magmaMinValueSize = config.getMagmaMinValueSize();
+    magmaMaxWriteCache = config.getMagmaMaxWriteCache();
+    magmaMinWriteCache = config.getMagmaMinWriteCache();
+    magmaMemQuotaRatio = config.getMagmaMemQuotaRatio();
+    magmaWalBufferSize = config.getMagmaWalBufferSize();
     magmaNumFlushers = config.getMagmaNumFlushers();
     magmaNumCompactors = config.getMagmaNumCompactors();
-    magmaWalBufferSize = config.getMagmaWalBufferSize();
+    magmaWalSyncInterval = config.getMagmaWalSyncInterval();
+    magmaBatchCommitPoint = config.isMagmaBatchCommitPoint();
+    magmaUseUpsert = config.isMagmaUseUpsert();
+    magmaExpiryFragThreshold = config.getMagmaExpiryFragThreshold();
+    magmaTombstoneFragThreshold = config.getMagmaTombstoneFragThreshold();
 }

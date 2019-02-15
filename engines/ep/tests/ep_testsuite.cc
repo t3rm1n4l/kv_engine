@@ -2339,10 +2339,14 @@ static enum test_result test_bg_meta_stats(EngineIface* h) {
 
     check(get_meta(h, "k2"), "Get meta failed");
     checkeq(1, get_int_stat(h, "ep_bg_fetched"), "Expected bg_fetched to be 1");
-    checkeq(1,
-            get_int_stat(h, "ep_bg_meta_fetched"),
-            "Expected bg_meta_fetched to remain at 1");
 
+    // Magma turns off bloom filters which impacts bg fetches.
+    // If they are off, don't perform this check.
+    if (get_bool_stat(h, "ep_bfilter_enabled")) {
+        checkeq(1,
+                get_int_stat(h, "ep_bg_meta_fetched"),
+                "Expected bg_meta_fetched to remain at 1");
+    }
     return SUCCESS;
 }
 
@@ -7802,7 +7806,12 @@ BaseTestCase testsuite_testcases[] = {
                  test_setup,
                  teardown,
                  NULL,
-                 prepare,
+                 // MAGMA
+                 // The vbucket onDiskTotalItems can not be maintained correctly
+                 // in magma because magma needs to use the active snapshot for
+                 // lookup to guarantee correct docCounts since it does not 
+                 // optimize & dedup IORequests.
+                 prepare_ep_bucket_skip_broken_under_magma,
                  cleanup),
         TestCase("expiry with xattr", test_expiry_with_xattr,
                  test_setup, teardown, "exp_pager_enabled=false", prepare,
@@ -7899,7 +7908,8 @@ BaseTestCase testsuite_testcases[] = {
                  // For this specific test, the problem is that the memory
                  // usage never goes below the 'ep_mem_high_wat'. Needs
                  // to resize 'max_size' to consider RocksDB pre-allocations.
-                 prepare_ep_bucket_skip_broken_under_rocks,
+                 // MAGMA: same issue as rocks
+                 prepare_ep_bucket_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("test memory condition",
                  test_memory_condition,
@@ -7911,7 +7921,8 @@ BaseTestCase testsuite_testcases[] = {
                  // opened, in a way we do not fully control yet.
                  // That makes this test to fail depending on the size of the
                  // pre-allocation.
-                 prepare_ep_bucket_skip_broken_under_rocks,
+                 // MAGMA: similar to rocks, magma preallocates memory
+                 prepare_ep_bucket_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("warmup conf", test_warmup_conf, test_setup,
                  teardown, NULL, prepare, cleanup),
@@ -7931,17 +7942,24 @@ BaseTestCase testsuite_testcases[] = {
                  NULL,
                  // TODO RDB: Fails in full eviction. Rockdb does not report
                  // the correct 'ep_bg_num_samples' stat
-                 prepare_ep_bucket_skip_broken_under_rocks,
+                 // MAGMA: Magam does not use bloom filters
+                 prepare_ep_bucket_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("test bloomfilters with store apis",
-                 test_bloomfilters_with_store_apis, test_setup,
-                 teardown, NULL, prepare_ep_bucket, cleanup),
+                 test_bloomfilters_with_store_apis, 
+                 test_setup,
+                 teardown, 
+                 NULL, 
+                 // MAGMA: Magam does not use bloom filters
+                 prepare_ep_bucket_skip_broken_under_magma, 
+                 cleanup),
         TestCase("test bloomfilters's in a delete+set scenario",
                  test_bloomfilter_delete_plus_set_scenario,
                  test_setup,
                  teardown,
                  NULL,
-                 prepare_ep_bucket,
+                 // MAGMA: Magam does not use bloom filters
+                 prepare_ep_bucket_skip_broken_under_magma, 
                  cleanup),
         TestCase("test datatype", test_datatype, test_setup,
                  teardown, NULL, prepare, cleanup),
@@ -7970,7 +7988,9 @@ BaseTestCase testsuite_testcases[] = {
                  // 'vb_active_perc_mem_resident' stat never goes below the
                  // threshold we expect. Needs to resize 'max_size' to consider
                  // RocksDB pre-allocations.
-                 prepare_skip_broken_under_rocks,
+                 // TODO MAGMA: magma allocates memory for arena style memory
+                 // head for memtables.
+                 prepare_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("test set_param message", test_set_param_message, test_setup,
                  teardown, "chk_remover_stime=1;max_size=6291456", prepare, cleanup),
@@ -8002,7 +8022,8 @@ BaseTestCase testsuite_testcases[] = {
                  teardown,
                  NULL,
                  /* TODO RDB: Needs stat:ep_db_data_size */
-                 prepare_ep_bucket_skip_broken_under_rocks,
+                 // MAGMA does not do file stats the same way as couchstore
+                 prepare_ep_bucket_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("file stats post warmup", test_vb_file_stats_after_warmup,
                  test_setup, teardown, NULL, prepare, cleanup),
@@ -8062,7 +8083,8 @@ BaseTestCase testsuite_testcases[] = {
                  teardown,
                  NULL,
                  /* TODO RDB: DB file size is not reported correctly */
-                 prepare_ep_bucket_skip_broken_under_rocks,
+                 // MAGMA: magma does not support database file size
+                 prepare_ep_bucket_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("stats curr_items ADD SET",
                  test_curr_items_add_set,
@@ -8100,7 +8122,8 @@ BaseTestCase testsuite_testcases[] = {
                  teardown,
                  nullptr,
                  /* TODO RDB: implement RocksDBKVStore::getAllKeys */
-                 prepare_skip_broken_under_rocks,
+                 // TODO MAGMA: no support for getAllKeys
+                 prepare_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("test ALL_KEYS api during bucket creation",
                  test_all_keys_api_during_bucket_creation,
@@ -8318,7 +8341,8 @@ BaseTestCase testsuite_testcases[] = {
                  teardown,
                  NULL,
                  // TODO RDB: Implement RocksDBKVStore::getNumPersistedDeletes
-                 prepare_skip_broken_under_rocks,
+                 // TODO Magma: Implement NumPersistedDeletes
+                 prepare_skip_broken_under_not_couchstore,
                  cleanup),
 
         // stats uuid
@@ -8445,7 +8469,8 @@ BaseTestCase testsuite_testcases[] = {
                  test_setup,
                  teardown,
                  NULL,
-                 prepare,
+                 // Magma does not support upgrades from older versions
+                 prepare_skip_broken_under_magma,
                  cleanup),
 
         TestCase("test_MB-19687_fixed",
@@ -8454,7 +8479,8 @@ BaseTestCase testsuite_testcases[] = {
                  teardown,
                  NULL,
                  // TODO RDB: Needs to fix some missing/unexpected stats
-                 prepare_skip_broken_under_rocks,
+                 // MAGMA does not include all the stats
+                 prepare_skip_broken_under_not_couchstore,
                  cleanup),
 
         TestCase("test_MB-19687_variable", test_mb19687_variable, test_setup, teardown, NULL,
@@ -8470,14 +8496,17 @@ BaseTestCase testsuite_testcases[] = {
                  // compaction and item expiration on compaction.
                  prepare_ep_bucket_skip_broken_under_rocks,
                  cleanup),
-
         TestCase("test_MB-20697",
                  test_mb20697,
                  test_setup,
                  teardown,
                  NULL,
                  // TODO RDB: Needs the 'ep_item_commit_failed' stat
-                 prepare_ep_bucket_skip_broken_under_rocks,
+                 // MAGMA: does not handle errors like couchstore. When an io
+                 // error occurs during a SyncCommitBatch, the error 
+                 // propagation is delayed until the next batch at which
+                 // time the kvstore should be taken offline.
+                 prepare_ep_bucket_skip_broken_under_not_couchstore,
                  cleanup),
         TestCase("test_MB-test_mb20943_remove_pending_ops_on_vbucket_delete",
                  test_mb20943_complete_pending_ops_on_vbucket_delete,
@@ -8488,7 +8517,12 @@ BaseTestCase testsuite_testcases[] = {
                  teardown,
                  NULL,
                  // TODO RDB: Needs the 'vb_active_ops_reject' stat
-                 prepare_ep_bucket_skip_broken_under_rocks,
+                 // MAGMA: Magma has a whole set of error injection tests
+                 // which cover corruption, etc. Magma does not handle
+                 // errors the same as couchstore, the error
+                 // propagation is delayed until the next batch at which
+                 // time the kvstore should be taken offline.
+                 prepare_ep_bucket_skip_broken_under_not_couchstore,
                  cleanup),
 
         TestCase("test_MB-23640_get_document_of_any_state", test_mb23640,

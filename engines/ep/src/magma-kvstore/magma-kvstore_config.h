@@ -18,6 +18,7 @@
 #pragma once
 
 #include "kvstore_config.h"
+#include "libmagma/magma.h"
 
 class Configuration;
 
@@ -31,17 +32,32 @@ public:
     size_t getBucketQuota() {
         return bucketQuota;
     }
+    size_t getMagmaLsdBufferSize() const {
+        return magmaLsdBufferSize;
+    }
+    float getMagmaLsdFragmentationRatio() const {
+        return magmaLsdFragmentationRatio;
+    }
     int getMagmaMaxCommitPoints() const {
         return magmaMaxCommitPoints;
+    }
+    int getMagmaCommitPointInterval() const {
+        return magmaCommitPointInterval;
+    }
+    size_t getMagmaMinValueSize() const {
+        return magmaMinValueSize;
     }
     size_t getMagmaMaxWriteCache() const {
         return magmaMaxWriteCache;
     }
+    size_t getMagmaMinWriteCache() const {
+        return magmaMinWriteCache;
+    }
     float getMagmaMemQuotaRatio() const {
         return magmaMemQuotaRatio;
     }
-    size_t getMagmaMinValueSize() const {
-        return magmaMinValueSize;
+    size_t getMagmaWalBufferSize() const {
+        return magmaWalBufferSize;
     }
     int getMagmaNumFlushers() const {
         return magmaNumFlushers;
@@ -49,32 +65,40 @@ public:
     int getMagmaNumCompactors() const {
         return magmaNumCompactors;
     }
-    size_t getMagmaWalBufferSize() const {
-        return magmaWalBufferSize;
+    int getMagmaWalSyncInterval() const {
+        return magmaWalSyncInterval;
+    }
+    bool getMagmaBatchCommitPoint() const {
+        return magmaBatchCommitPoint;
+    }
+    bool getUseUpsert() const {
+        return magmaUseUpsert;
+    }
+    float getMagmaExpiryFragThreshold() const {
+        return magmaExpiryFragThreshold;
+    }
+    float getMagmaTombstoneFragThreshold() const {
+        return magmaTombstoneFragThreshold;
     }
 
+    Magma::Config cfg;
+
 private:
-    // Bucket RAM Quota
     size_t bucketQuota;
-
-    // Max commit points that can be rolled back to
+    size_t magmaLsdBufferSize;
+    float magmaLsdFragmentationRatio;
     int magmaMaxCommitPoints;
-
-    // Magma maximum write cache max size
-    size_t magmaMaxWriteCache;
-
-    // Magma Memory Quota as a ratio of Bucket Quota
-    float magmaMemQuotaRatio;
-
-    // Magma minimum value for key value separation
+    int magmaCommitPointInterval;
     size_t magmaMinValueSize;
-
-    // Number of background threads to flush filled memtables to disk
-    int magmaNumFlushers;
-
-    // Number of background compactor threads
-    int magmaNumCompactors;
-
-    // Magma WAL Buffer Size after which flush will be forced
+    size_t magmaMaxWriteCache;
+    size_t magmaMinWriteCache;
+    float magmaMemQuotaRatio;
     size_t magmaWalBufferSize;
+    int magmaNumFlushers;
+    int magmaNumCompactors;
+    int magmaWalSyncInterval;
+    bool magmaBatchCommitPoint;
+    bool magmaUseUpsert;
+    float magmaExpiryFragThreshold;
+    float magmaTombstoneFragThreshold;
 };
