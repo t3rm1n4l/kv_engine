@@ -67,7 +67,7 @@ using vb_bgfetch_queue_t =
 enum class GetMetaOnly { Yes, No };
 
 typedef std::shared_ptr<Callback<Vbid&, const DocKey&, bool&>> BloomFilterCBPtr;
-typedef std::shared_ptr<Callback<Item&, time_t&> > ExpiredItemsCBPtr;
+typedef std::shared_ptr<Callback<Item&, time_t&>> ExpiredItemsCBPtr;
 
 /**
  * Generic information about a KVStore file
@@ -641,7 +641,6 @@ public:
                           const DiskDocKey& startKey,
                           const DiskDocKey& endKey,
                           const GetRangeCb& cb) {
-        throw std::runtime_error("Backend does not support getRange()");
     }
 
     /**
