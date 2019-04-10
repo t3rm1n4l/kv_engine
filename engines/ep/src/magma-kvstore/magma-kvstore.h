@@ -28,8 +28,6 @@
 #include <string>
 #include <vector>
 
-using namespace magma;
-
 class MagmaRequest;
 class MagmaKVStoreConfig;
 class KVMagma;
@@ -320,7 +318,7 @@ public:
      * Decode a document being stored in the local db by extricating the
      * MetaData from the value
      */
-    void DecodeLocalDoc(const Slice& valSlice,
+    void DecodeLocalDoc(const magma::Slice& valSlice,
                         std::string& value,
                         bool& isDelete);
 
@@ -343,12 +341,12 @@ public:
     /**
      * Dencode the vbstate and magmaInfo from Slice to structures
      */
-    Status decodeVBState(const Vbid vbid, const std::string& valString);
+    magma::Status decodeVBState(const Vbid vbid, const std::string& valString);
 
     /**
      * Read the vbstate from the local db and decode to structure
      */
-    Status readVBState(const Vbid vbid);
+    magma::Status readVBState(const Vbid vbid);
 
     /**
      * Write the encoded vbstate to the local db.
@@ -359,7 +357,7 @@ public:
     /**
      * Save the vbstate to local db as part of existing CommitBatch
      */
-    void saveVBState(Vbid vbid, Magma::CommitBatch* batch);
+    void saveVBState(Vbid vbid, magma::Magma::CommitBatch* batch);
 
     /**
      * Get the MagmaInfo from the cache
@@ -382,16 +380,16 @@ public:
         delete kvFileHandle;
     }
 
-    void saveCollectionStats(Magma::CommitBatch& batch,
+    void saveCollectionStats(magma::Magma::CommitBatch& batch,
                              CollectionID cid,
                              Collections::VB::PersistedStats stats);
-    void deleteCollectionStats(Magma::CommitBatch* batch, CollectionID cid);
+    void deleteCollectionStats(magma::Magma::CommitBatch* batch, CollectionID cid);
     Collections::VB::PersistedStats getCollectionStats(
             const KVFileHandle& kvFileHandle, CollectionID collection) override;
 
-    Status readLocalDoc(Vbid vbid, const Slice& keySlice, std::string& valBuf);
-    Status writeLocalDoc(Magma::CommitBatch* batch,
-                         const Slice& keySlice,
+    magma::Status readLocalDoc(Vbid vbid, const magma::Slice& keySlice, std::string& valBuf);
+    magma::Status writeLocalDoc(magma::Magma::CommitBatch* batch,
+                         const magma::Slice& keySlice,
                          std::string& valBuf,
                          bool deleted);
 
@@ -399,22 +397,22 @@ public:
     std::vector<Collections::KVStore::DroppedCollection> getDroppedCollections(
             Vbid vbid) override;
     size_t getDroppedCollectionCount(Vbid vbid);
-    Status updateCollectionsMeta(Vbid vbid,
-                                 Magma::CommitBatch* batch,
+    magma::Status updateCollectionsMeta(Vbid vbid,
+                                 magma::Magma::CommitBatch* batch,
                                  Collections::VB::Flush& collectionsFlush);
-    std::pair<Status, std::vector<Collections::KVStore::DroppedCollection>>
-    updateOpenCollections(Vbid vbid, Magma::CommitBatch* batch);
-    Status updateDroppedCollections(
+    std::pair<magma::Status, std::vector<Collections::KVStore::DroppedCollection>>
+    updateOpenCollections(Vbid vbid, magma::Magma::CommitBatch* batch);
+    magma::Status updateDroppedCollections(
             Vbid vbid,
-            Magma::CommitBatch* batch,
+            magma::Magma::CommitBatch* batch,
             boost::optional<
                     std::vector<Collections::KVStore::DroppedCollection>>
                     dropped);
-    Status updateScopes(Vbid vbid, Magma::CommitBatch* batch);
+    magma::Status updateScopes(Vbid vbid, magma::Magma::CommitBatch* batch);
 
 private:
     // Magma instance for a shard.
-    std::unique_ptr<Magma> magma;
+    std::unique_ptr<magma::Magma> magma;
 
     /**
      * Container for pending Magma requests.

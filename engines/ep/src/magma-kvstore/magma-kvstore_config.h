@@ -81,7 +81,7 @@ public:
         return magmaTombstoneFragThreshold;
     }
 
-    Magma::Config cfg;
+    magma::Magma::Config cfg;
 
 private:
     size_t bucketQuota;

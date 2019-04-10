@@ -31,6 +31,8 @@
 #include <stdio.h>
 #include <cstdarg>
 
+using namespace magma;
+
 // Keys to localdb docs
 static const Slice vbstateKey = {"_vbstate", 8};
 static const Slice manifestKey = {"_local/collections/manifest", 27};
@@ -1682,8 +1684,8 @@ RollbackResult MagmaKVStore::rollback(Vbid vbid,
 
     auto keyCallback = [&](const Slice& keySlice,
                            const uint64_t seqno,
-                           std::shared_ptr<Snapshot> keySS,
-                           std::shared_ptr<Snapshot> seqSS) {
+                           std::shared_ptr<magma::Snapshot> keySS,
+                           std::shared_ptr<magma::Snapshot> seqSS) {
         auto docKey = makeDiskDocKey(keySlice);
         CacheLookup lookup(docKey, seqno, vbid);
         cacheLookup->callback(lookup);
