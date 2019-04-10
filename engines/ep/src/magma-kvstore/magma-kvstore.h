@@ -28,6 +28,8 @@
 #include <string>
 #include <vector>
 
+using namespace magma;
+
 class MagmaRequest;
 class MagmaKVStoreConfig;
 class KVMagma;
