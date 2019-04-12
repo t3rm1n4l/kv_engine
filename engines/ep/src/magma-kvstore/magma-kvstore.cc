@@ -556,6 +556,8 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
         configuration.cfg.EnableUpdateStatusForSet = false;
     }
 
+    configuration.cfg.DumpDebugStats = true;
+
     std::string loggerName =
             "magma_" + std::to_string(configuration.getShardId());
     logger = BucketLogger::createBucketLogger(loggerName, loggerName);
