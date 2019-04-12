@@ -999,7 +999,7 @@ bool MagmaKVStore::writeVBState(Vbid vbid, VBStatePersist options) {
     if (options == VBStatePersist::VBSTATE_PERSIST_WITHOUT_COMMIT ||
         options == VBStatePersist::VBSTATE_PERSIST_WITH_COMMIT) {
         if (options == VBStatePersist::VBSTATE_PERSIST_WITH_COMMIT) {
-            std::shared_ptr<Magma::CommitBatch> batch;
+            std::unique_ptr<Magma::CommitBatch> batch;
             Status status = magma->NewCommitBatch(vbid.get(), batch);
             if (!status) {
                 logger->warn(
@@ -1012,7 +1012,7 @@ bool MagmaKVStore::writeVBState(Vbid vbid, VBStatePersist options) {
 
             saveVBState(vbid, batch.get());
 
-            status = magma->ExecuteCommitBatch(batch);
+            status = magma->ExecuteCommitBatch(std::move(batch));
             if (!status) {
                 logger->warn(
                         "MagmaKVStore::writeVBState: magma::ExecuteCommitBatch "
@@ -1257,7 +1257,7 @@ int MagmaKVStore::saveDocs(Vbid vbid,
     uint64_t ndeletes = 0;
 
     int64_t lastSeqno = 0;
-    std::shared_ptr<Magma::CommitBatch> batch;
+    std::unique_ptr<Magma::CommitBatch> batch;
     Status status = magma->NewCommitBatch(vbid.get(), batch);
     if (!status) {
         logger->warn(
@@ -1441,7 +1441,7 @@ int MagmaKVStore::saveDocs(Vbid vbid,
         }
     }
 
-    status = magma->ExecuteCommitBatch(batch);
+    status = magma->ExecuteCommitBatch(std::move(batch));
     if (!status) {
         logger->warn("MagmaKVStore::saveDocs: ExecuteCommitBatch {} error {}",
                      vbid.to_string(),
@@ -1851,7 +1851,7 @@ bool MagmaKVStore::compactDB(compaction_ctx* inCtx) {
 
     // Need to save off new vbstate and possibly collections manifest.
     // Start a new CommitBatch
-    std::shared_ptr<Magma::CommitBatch> batch;
+    std::unique_ptr<Magma::CommitBatch> batch;
     status = magma->NewCommitBatch(vbid.get(), batch);
     if (!status) {
         logger->warn(
@@ -1883,7 +1883,7 @@ bool MagmaKVStore::compactDB(compaction_ctx* inCtx) {
     }
 
     // Write & Sync the CommitBatch
-    status = magma->ExecuteCommitBatch(batch);
+    status = magma->ExecuteCommitBatch(std::move(batch));
     if (!status) {
         logger->warn(
                 "MagmaKVStore::saveDocs: magma::ExecuteCommitBatch "
