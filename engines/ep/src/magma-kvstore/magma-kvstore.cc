@@ -1195,12 +1195,12 @@ Status MagmaKVStore::decodeVBState(const Vbid vbid,
             vbstateJSON.value("max_deleted_seqno", defaultUint64);
 
     if (vb_state.empty()) {
-        return Status(
-                errStr + " JSON doc for is in the wrong format: " + valString +
-                " vb state: " + vb_state +
-                " checkpoint id: " + std::to_string(vbstate->checkpointId) +
-                " and max deleted seqno:" +
-                std::to_string(vbstate->maxDeletedSeqno));
+        return Status(errStr + " JSON doc for is in the wrong format: " +
+                      valString + " vb state: " + vb_state +
+                      " checkpoint id: " +
+                      std::to_string(vbstate->checkpointId) +
+                      " and max deleted seqno:" +
+                      std::to_string(vbstate->maxDeletedSeqno));
     } else {
         vbstate->state = VBucket::fromString(vb_state.c_str());
         vbstate->highSeqno = vbstateJSON.value("high_seqno", defaultInt64);
@@ -1561,10 +1561,21 @@ scan_error_t MagmaKVStore::scan(ScanContext* ctx) {
 
     auto itr = magma->NewSeqIterator(ctx->vbid.get());
 
+    uint64_t currSeqno = ctx->lastReadSeqno;
+
     for (itr->Seek(startSeqno, ctx->maxSeqno); itr->Valid(); itr->Next()) {
         Slice keySlice, metaSlice, valSlice;
         uint64_t seqno;
         itr->GetRecord(keySlice, metaSlice, valSlice, seqno);
+
+        if (seqno < ctx->lastReadSeqno) {
+            throw std::runtime_error(
+                    "non-monotonic kvid:" + std::to_string(ctx->vbid.get()) +
+                    " " + std::to_string(seqno) + " < " +
+                    std::to_string(ctx->lastReadSeqno) + "startseqno:" +
+                    std::to_string(startSeqno) + "end;" +
+                    std::to_string(ctx->maxSeqno));
+        }
 
         if (keySlice.Len() > UINT16_MAX) {
             throw std::invalid_argument(
@@ -1651,8 +1662,11 @@ scan_error_t MagmaKVStore::scan(ScanContext* ctx) {
             logger->warn("scan ENOMEM");
             return scan_again;
         }
+
+        currSeqno = seqno;
     }
 
+    ctx->lastReadSeqno = currSeqno;
     return scan_success;
 }
 
