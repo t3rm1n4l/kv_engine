@@ -1019,7 +1019,7 @@
             "type": "size_t"
         },
         "magma_lsd_fragmentation_ratio": {
-            "default": "0.25",
+            "default": "0.5",
             "dynamic": false,
             "descr": "LSD Fragmentation Ratio",
             "type": "float"
