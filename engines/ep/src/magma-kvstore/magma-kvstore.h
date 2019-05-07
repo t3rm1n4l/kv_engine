@@ -48,6 +48,10 @@ public:
     MagmaKVStore(MagmaKVStoreConfig& config);
     ~MagmaKVStore();
 
+    virtual void addStats(const AddStatFn& add_stat,
+                          const void* c,
+                          const std::string& args) override;
+
     void operator=(MagmaKVStore& from) = delete;
 
     /**

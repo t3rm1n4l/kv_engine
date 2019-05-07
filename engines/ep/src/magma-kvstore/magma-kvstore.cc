@@ -22,6 +22,7 @@
 #include "ep_time.h"
 #include "magma-kvstore_config.h"
 #include "vbucket.h"
+#include "statwriter.h"
 #include <flatbuffers/flatbuffers.h>
 
 #include <string.h>
@@ -2398,4 +2399,13 @@ Status MagmaKVStore::updateScopes(Vbid vbid, Magma::CommitBatch* batch) {
     buffer = {reinterpret_cast<const char*>(builder.GetBufferPointer()),
               builder.GetSize()};
     return writeLocalDoc(batch, openScopesKey, buffer, false);
+}
+
+void MagmaKVStore::addStats(const AddStatFn& add_stat,
+                       const void* c,
+                       const std::string& args) {
+    std::string statName = "magma";
+    Magma::MagmaStats stats;
+    magma->GetStats(stats);
+    add_casted_stat(statName.c_str(), stats.JSON().dump(), add_stat, c);
 }
