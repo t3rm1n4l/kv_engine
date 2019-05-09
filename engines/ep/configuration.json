@@ -1073,7 +1073,7 @@
             "type": "size_t"
         },
         "magma_num_compactors": {
-            "default": "1",
+            "default": "4",
             "dynamic": false,
             "descr": "Number of background compactor threads.",
             "type": "size_t"
