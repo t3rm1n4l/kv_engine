@@ -561,6 +561,7 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
 
     configuration.cfg.DumpDebugStats = true;
 
+    /*
     std::string loggerName =
             "magma_" + std::to_string(configuration.getShardId());
     logger = BucketLogger::createBucketLogger(loggerName, loggerName);
@@ -569,6 +570,9 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
     configuration.cfg.MakeCompactionCallback = [&]() {
         return std::make_unique<MagmaCompactionCB>(this);
     };
+
+    */
+    configuration.cfg.LogLevel = "info";
 
     configuration.cfg.SetupThreadContext = [&]() {
         ObjectRegistry::onSwitchThread(ObjectRegistry::getCurrentEngine(),
