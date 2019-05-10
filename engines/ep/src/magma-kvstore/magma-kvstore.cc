@@ -2410,8 +2410,18 @@ Status MagmaKVStore::updateScopes(Vbid vbid, Magma::CommitBatch* batch) {
 void MagmaKVStore::addStats(const AddStatFn& add_stat,
                        const void* c,
                        const std::string& args) {
-    std::string statName = "magma";
-    Magma::MagmaStats stats;
-    magma->GetStats(stats);
-    add_casted_stat(statName.c_str(), stats.JSON().dump(), add_stat, c);
+    std::string statName;
+    std::string kvidArg = args.substr(1, args.length() - 1);
+    if (kvidArg.length() > 0) {
+        auto kvid = atoi(kvidArg.c_str());
+        if (kvid >= 0 && kvid < UINT16_MAX) {
+            statName = "kvstore";
+            add_casted_stat(statName.c_str(), magma->GetKVStoreStats(kvid).dump(), add_stat, c);
+        }
+    } else {
+        statName = "magma";
+        Magma::MagmaStats stats;
+        magma->GetStats(stats);
+        add_casted_stat(statName.c_str(), stats.JSON().dump(), add_stat, c);
+    }
 }
