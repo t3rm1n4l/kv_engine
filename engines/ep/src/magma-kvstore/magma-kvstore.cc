@@ -519,11 +519,9 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
 
     configuration.setUseUpsert(configuration.getUseUpsert());
 
-    std::string basePath =
-            "/data" + std::to_string(configuration.getShardId() % 4);
     // Magma path is unique per shard.
-    configuration.cfg.Path =
-            basePath + "/magma/" + std::to_string(configuration.getShardId());
+    configuration.cfg.Path = configuration.getDBName() + "/magma/" +
+                             std::to_string(configuration.getShardId());
     configuration.cfg.MaxKVStores = configuration.getMaxVBuckets();
     cachedVBStates.resize(configuration.getMaxVBuckets());
     cachedMagmaInfo.resize(configuration.getMaxVBuckets());
