@@ -572,7 +572,7 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
     };
 
     */
-    configuration.cfg.LogLevel = "critical";
+    configuration.cfg.LogLevel = "info";
 
     configuration.cfg.SetupThreadContext = [&]() {
         ObjectRegistry::onSwitchThread(ObjectRegistry::getCurrentEngine(),
