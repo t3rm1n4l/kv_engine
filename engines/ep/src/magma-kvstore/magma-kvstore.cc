@@ -1642,6 +1642,8 @@ scan_error_t MagmaKVStore::scan(ScanContext* ctx) {
                 logger->warn("scan ENOMEM");
                 return scan_again;
             }
+
+            ctx->lastReadSeqno = seqno;
         }
 
         // TODO decompress
