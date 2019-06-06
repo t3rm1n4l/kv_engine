@@ -575,7 +575,7 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
     configuration.cfg.LogLevel = "info";
 
     auto currEngine = ObjectRegistry::getCurrentEngine();
-    configuration.magmaCfg.SetupThreadContext = [currEngine]() {
+    configuration.cfg.SetupThreadContext = [currEngine]() {
         ObjectRegistry::onSwitchThread(currEngine,
                                        false);
     };
