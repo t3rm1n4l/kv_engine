@@ -574,12 +574,12 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
     */
     configuration.cfg.LogLevel = "info";
 
-    configuration.cfg.SetupThreadContext = [&]() {
-        ObjectRegistry::onSwitchThread(ObjectRegistry::getCurrentEngine(),
+    auto currEngine = ObjectRegistry::getCurrentEngine();
+    configuration.magmaCfg.SetupThreadContext = [currEngine]() {
+        ObjectRegistry::onSwitchThread(currEngine,
                                        false);
     };
 
-#if 0
     configuration.cfg.WriteCacheAllocationCallback = [&](size_t size,
                                                          bool alloc) {
         if (alloc) {
@@ -588,7 +588,6 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
             ObjectRegistry::memoryDeallocated(size);
         }
     };
-#endif
 
     createDataDir(configuration.getDBName());
 
