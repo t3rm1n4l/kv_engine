@@ -568,12 +568,12 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
         return std::make_unique<MagmaCompactionCB>(this);
     };
 
-    auto currEngine = ObjectRegistry::getCurrentEngine();
-    configuration.cfg.SetupThreadContext = [currEngine]() {
-        ObjectRegistry::onSwitchThread(currEngine,
-                                      false);
+    configuration.cfg.SetupThreadContext = [&]() {
+        ObjectRegistry::onSwitchThread(ObjectRegistry::getCurrentEngine(),
+                                       false);
     };
 
+#if 0
     configuration.cfg.WriteCacheAllocationCallback = [&](size_t size,
                                                          bool alloc) {
         if (alloc) {
@@ -582,6 +582,7 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
             ObjectRegistry::memoryDeallocated(size);
         }
     };
+#endif
 
     createDataDir(configuration.getDBName());
 
