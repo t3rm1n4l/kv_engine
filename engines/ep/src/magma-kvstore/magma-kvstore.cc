@@ -1567,7 +1567,7 @@ scan_error_t MagmaKVStore::scan(ScanContext* ctx) {
     bool onlyKeys = (ctx->valFilter == ValueFilter::KEYS_ONLY) ? true : false;
 
     auto itr = magma->NewSeqIterator(ctx->vbid.get());
-    if (itr == nulllptr) {
+    if (itr == nullptr) {
         logger->warn(
                 "MagmaKVStore::NewSeqIterator failed.. "
                 "vb:{}",
