@@ -523,8 +523,12 @@ MagmaKVStore::MagmaKVStore(MagmaKVStoreConfig& configuration)
       scanCounter(0),
       cachedMagmaInfo(configuration.getMaxVBuckets()),
       compaction_ctxList(configuration.getMaxVBuckets()) {
+    auto basePath =
+            "/data" + std::to_string(configuration.getShardId() % 4 + 1);
+    auto dataPath =
+            basePath + "/magma/" + std::to_string(configuration.getShardId());
 
-    configuration.magmaCfg.Path = magmaPath;
+    configuration.magmaCfg.Path = dataPath;
     configuration.magmaCfg.MaxKVStores = configuration.getMaxVBuckets();
     configuration.magmaCfg.MaxKVStoreLSDBufferSize =
             configuration.getMagmaDeleteMemtableWritecache();
