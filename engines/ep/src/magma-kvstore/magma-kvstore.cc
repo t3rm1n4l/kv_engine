@@ -378,17 +378,19 @@ MagmaKVStore::MagmaCompactionCB::~MagmaCompactionCB() {
     magmaKVStore.logger->debug("MagmaCompactionCB destructor");
 }
 
+static std::string docKey(const magma::Slice& key, const magma::Slice& meta) {
+    std::stringstream ss;
+    ss << "key:" << cb::UserData{makeDiskDocKey(key).to_string()} << " "
+       << getDocMeta(meta).to_string();
+    return ss.str();
+}
+
 bool MagmaKVStore::compactionCallBack(MagmaKVStore::MagmaCompactionCB& cbCtx,
                                       const magma::Slice& keySlice,
                                       const magma::Slice& metaSlice,
                                       const magma::Slice& valueSlice) {
-    std::stringstream itemString;
     if (logger->should_log(spdlog::level::TRACE)) {
-        itemString << "key:"
-                   << cb::UserData{makeDiskDocKey(keySlice).to_string()};
-        itemString << " ";
-        itemString << getDocMeta(metaSlice).to_string();
-        logger->TRACE("MagmaCompactionCB {}", itemString.str());
+        logger->TRACE("MagmaCompactionCB {}", docKey(keySlice, metaSlice));
     }
 
     if (!cbCtx.initialized) {
@@ -451,8 +453,10 @@ bool MagmaKVStore::compactionCallBack(MagmaKVStore::MagmaCompactionCB& cbCtx,
 
             if (seqno != maxSeqno) {
                 if (cbCtx.ctx->compactConfig.drop_deletes) {
-                    logger->TRACE("MagmaCompactionCB DROP drop_deletes {}",
-                                  itemString.str());
+                    if (logger->should_log(spdlog::level::TRACE)) {
+                        logger->TRACE("MagmaCompactionCB DROP drop_deletes {}",
+                                      docKey(keySlice, metaSlice));
+                    }
                     cbCtx.ctx->stats.tombstonesPurged++;
                     if (cbCtx.ctx->max_purged_seq < seqno) {
                         cbCtx.ctx->max_purged_seq = seqno;
@@ -465,8 +469,11 @@ bool MagmaKVStore::compactionCallBack(MagmaKVStore::MagmaCompactionCB& cbCtx,
                      !cbCtx.ctx->compactConfig.retain_erroneous_tombstones) &&
                     (!cbCtx.ctx->compactConfig.purge_before_seq ||
                      seqno <= cbCtx.ctx->compactConfig.purge_before_seq)) {
-                    logger->TRACE("MagmaCompactionCB DROP expired tombstone {}",
-                                  itemString.str());
+                    if (logger->should_log(spdlog::level::TRACE)) {
+                        logger->TRACE(
+                                "MagmaCompactionCB DROP expired tombstone {}",
+                                docKey(keySlice, metaSlice));
+                    }
                     cbCtx.ctx->stats.tombstonesPurged++;
                     if (cbCtx.ctx->max_purged_seq < seqno) {
                         cbCtx.ctx->max_purged_seq = seqno;
@@ -504,13 +511,15 @@ bool MagmaKVStore::compactionCallBack(MagmaKVStore::MagmaCompactionCB& cbCtx,
                 }
                 itm->setDeleted(DeleteSource::TTL);
                 cbCtx.ctx->expiryCallback->callback(*(itm.get()), currTime);
-                logger->TRACE("MagmaCompactionCB expiry callback {}",
-                              itemString.str());
+                if (logger->should_log(spdlog::level::TRACE)) {
+                    logger->TRACE("MagmaCompactionCB expiry callback {}",
+                                  docKey(keySlice, metaSlice));
+                }
             }
         }
     }
 
-    logger->TRACE("MagmaCompactionCB KEEP {}", itemString.str());
+    logger->TRACE("MagmaCompactionCB KEEP {}", docKey(keySlice, metaSlice));
     return false;
 }
 
